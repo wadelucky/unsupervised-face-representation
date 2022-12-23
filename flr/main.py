@@ -17,7 +17,7 @@ from torch.utils.data import dataset
 import apex
 from apex.parallel.LARC import LARC
 from torchvision.datasets import ImageFolder
-
+from torch.distributed.elastic.multiprocessing.errors import record  # LW
 from utils.misc import bool_flag, initialize_exp, fix_random_seeds, AverageMeter, restart_from_checkpoint
 from backends.pytorch import init_distributed_mode
 from datasets import MultiCropDataset, DatasetBaseUnsupervised_HDF5
@@ -132,15 +132,21 @@ parser.add_argument("--dump_path", type=str, default=".",
                     help="experiment dump path for checkpoints and log")
 parser.add_argument("--seed", type=int, default=31, help="seed")
 parser.add_argument("--tensorboard-log-dir", type=str, default="/tensorboard")
-parser.add_argument('--print_freq', type=int, default=50 )
+parser.add_argument('--print_freq', type=int, default=50)
 
+##########################
+#### LW adds           ###
+##########################
+parser.add_argument('--num_experts', type=int, default=4)
+
+@record  # no this line before
 def main():
     global args
     args = parser.parse_args()
     init_distributed_mode(args)
     fix_random_seeds(args.seed)
     logger, tensorboard_logger, training_stats = initialize_exp(args, "epoch", "loss")
-
+    # print('args are ', args)
     # build data
     list_of_datatset = []
     if args.dataset == "imagenet":
@@ -187,6 +193,7 @@ def main():
         color_distorsion_scale=args.color_distorsion_scale
     )
     sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+    start = time.time()
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         sampler=sampler,
@@ -195,8 +202,9 @@ def main():
         pin_memory=True,
         drop_last=True
     )
+    end = time.time()
     logger.info("Building data done with {} images loaded.".format(len(train_dataset)))
-
+    logger.info("Time to load data is {}.".format(end-start))
     # build model
     if args.algorithm == "swav":
         base_model = resnet_models.__dict__[args.arch](num_experts=args.num_experts)
@@ -282,11 +290,19 @@ def main():
         train_loader.sampler.set_epoch(epoch)
 
         trainer.on_epoch_start(epoch)
+        
+        #
+        loadstart = time.time()
+        for it, inputs in enumerate(train_loader):
+            continue
+        loadend = time.time()
+        logger.info("load time with {0} worker is {1}".format(args.workers, loadend-loadstart))
+        #
 
         # train the network
         scores, queue = train(train_loader, trainer, optimizer, epoch, lr_schedule, tensorboard_logger)
         training_stats.update(scores)
-
+        #logger.info("training stats {0}".format(training_stats.stats))
         # save checkpoints
         if args.rank == 0:
             save_dict = {
@@ -313,7 +329,7 @@ def train(train_loader, trainer, optimizer, epoch, lr_schedule, tensorboard_logg
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
-
+    
     trainer.model.train()
     end = time.time()
 
