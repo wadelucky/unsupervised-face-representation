@@ -12,7 +12,7 @@ This is the PyTorch implementation for [Facial Representation Learning (FRL) pap
 
 ## Model Zoo
 
-We provide bellow some of the models trained in a self-supervised manner. More models to be added later on.
+They provide bellow some of the models trained in a self-supervised manner. More models to be added later on.
 <table>
   <thead>
     <tr style="text-align: right;">
@@ -45,7 +45,7 @@ We provide bellow some of the models trained in a self-supervised manner. More m
 To use the code, clone the repo and install the following packages:
 
 ```bash
-git clone https://github.com/1adrianb/unsupervised-face-representation
+git clone https://github.com/wadelucky/unsupervised-face-representation
 ```
 
 ### Requirements
@@ -65,9 +65,12 @@ Note, if you are using pytorch > 1.10 and experience issues with apex, please se
 
 ## Training
 
-```bash
-bash scripts/run.sh
-```
+~~```bash~~
+~~bash scripts/run.sh~~
+~~```~~
+
+### In HPC, you may need to modify some hyperparameters.
+sbatch face.sbatch
 
 Before running the script make sure to set the appropiate paths. The models released in the paper were trained using 64 K40 GPUs.
 
